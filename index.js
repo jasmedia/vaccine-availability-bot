@@ -81,13 +81,15 @@ const main = () => {
     fetchAvailabiltyDetails().then((data) => {
         // console.log(data);
         // Send message to Telegram if vaccine slot available.
-        console.log('Data:', data);
+        // console.log('Data:', data);
         if (data.availability > 0) {
+            const formatted = formatMessage(data)
 
+            sendMessage(formatted)
+        } else {
+            console.log('Slots unavailable', new Date());
         }
-        const formatted = formatMessage(data)
 
-        sendMessage(formatted)
 
     }).catch(err => {
         console.log(err);
