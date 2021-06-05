@@ -1,0 +1,17 @@
+{
+  "name": "vaccine-availabilty-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot to get vaccine availabilty",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jaseem Jas",
+  "license": "MIT",
+  "dependencies": {
+    "cron": "^1.8.2",
+    "date-fns": "^2.22.1",
+    "dotenv": "^10.0.0",
+    "got": "^11.8.2"
+  }
+}
