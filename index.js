@@ -43,6 +43,9 @@ const fetchAvailabiltyDetails = async() => {
              * {"centers":[{"center_id":126622,"name":"Othukkungal PHC","address":"Parakkala Othukkungal-Panakkad Road Othukkungal","state_name":"Kerala","district_name":"Malappuram","block_name":"Vengara CHC","pincode":676528,"lat":11,"long":76,"from":"09:00:00","to":"13:00:00","fee_type":"Free","sessions":[{"session_id":"a42a9531-7500-4214-8f44-33e120d3944f","date":"05-06-2021","available_capacity":0,"min_age_limit":45,"vaccine":"COVISHIELD","slots":["09:00AM-10:00AM","10:00AM-11:00AM","11:00AM-12:00PM","12:00PM-01:00PM"],"available_capacity_dose1":0,"available_capacity_dose2":0}]}]}
              */
             const result = JSON.parse(response.body)
+            if (!result) {
+                reject();
+            }
             console.log(result.centers);
             const center = result.centers;
             const name = center.name;
