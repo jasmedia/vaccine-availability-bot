@@ -7,7 +7,7 @@ const telgramToken = process.env.TELEGRAM_TOKEN;
 const telegramBaseUrl = process.env.TELEGRAM_BASE_URL;
 const channelId = process.env.CHANNEL_ID;
 const centerId = process.env.CENTER_ID;
-console.log(baseUrl, telgramToken, telegramBaseUrl, channelId, centerId);
+console.log("Server initiated");
 /**
  * Send Message to Telegram 
  * @param {String} msg formatted message string
