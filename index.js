@@ -2,14 +2,19 @@ require('dotenv').config()
 const got = require('got')
 var CronJob = require('cron').CronJob;
 const { format, add } = require('date-fns')
+const logger = require('./config/logger')
 const baseUrl = process.env.BASE_URL;
 const telgramToken = process.env.TELEGRAM_TOKEN;
 const telegramBaseUrl = process.env.TELEGRAM_BASE_URL;
 const channelId = process.env.CHANNEL_ID;
-const centerId = process.env.CENTER_ID;
-console.log("Server initiated");
+const districtId = process.env.DISTRICT_ID;
+const centers = [579485, 712743, 628748, 707284, 126367, 126622]
+
+logger.info(`Server initiated on Districst ${districtId} and Centers ${centers}`);
+
+
 /**
- * Send Message to Telegram 
+ * Send Message to Telegram
  * @param {String} msg formatted message string
  */
 const sendMessage = async(msg) => {
@@ -17,12 +22,10 @@ const sendMessage = async(msg) => {
 
     try {
         const url = telegramBaseUrl + `${telgramToken}/sendMessage?chat_id=${channelId}&text=${encodeURI(msg)}&parse_mode=Markdown`
-        const response = await got(url);
-        console.log(response.body);
-        //=> '<!doctype html> ...'
+        await got(url);
+        logger.info(`message sent`)
     } catch (error) {
-        console.log(error.response);
-        //=> 'Internal server error ...'
+        logger.error(error);
     }
 
 }
@@ -35,33 +38,20 @@ const fetchAvailabiltyDetails = async() => {
     return new Promise(async(resolve, reject) => {
         try {
             const date = format(add(new Date(), { days: 0 }), 'dd-MM-yyyy')
-            console.log(date);
+            logger.info(`Current date: ${date}`)
+
             // const url = baseUrl + `calendarByPin?pincode=676528&date=${date}`;
-            const url = baseUrl + `calendarByCenter?center_id=${centerId}&date=${date}`;
+            const url = baseUrl + `calendarByDistrict?district_id=${districtId}&date=${date}`;
             const response = await got(url);
-            /** 
-             * {"centers":[{"center_id":126622,"name":"Othukkungal PHC","address":"Parakkala Othukkungal-Panakkad Road Othukkungal","state_name":"Kerala","district_name":"Malappuram","block_name":"Vengara CHC","pincode":676528,"lat":11,"long":76,"from":"09:00:00","to":"13:00:00","fee_type":"Free","sessions":[{"session_id":"a42a9531-7500-4214-8f44-33e120d3944f","date":"05-06-2021","available_capacity":0,"min_age_limit":45,"vaccine":"COVISHIELD","slots":["09:00AM-10:00AM","10:00AM-11:00AM","11:00AM-12:00PM","12:00PM-01:00PM"],"available_capacity_dose1":0,"available_capacity_dose2":0}]}]}
-             */
-            if (!response.body) {
+
+            const result = JSON.parse(response.body)
+            if (result.centers) {
+                resolve(result.centers);
+            } else {
                 reject();
             }
-            const result = JSON.parse(response.body)
-
-            console.log(result.centers);
-            const center = result.centers;
-            const name = center.name;
-            const type = center.fee_type;
-            // FIXME: need to handle more than one session.
-            const session = center.sessions[0];
-            const sessionDate = session.date;
-            const availability = session.available_capacity;
-            const ageLimit = session.min_age_limit;
-            const vaccine = session.vaccine;
-            const dose1_availability = session.available_capacity_dose1;
-            const dose2_availability = session.available_capacity_dose2;
-            resolve({ name, sessionDate, type, availability, ageLimit, vaccine, dose1_availability, dose2_availability });
         } catch (error) {
-            console.log(error.response);
+            logger.error(error);
             reject(error);
         }
     });
@@ -70,6 +60,7 @@ const fetchAvailabiltyDetails = async() => {
 
 formatMessage = (data) => {
     const text = `*Center:* ${data.name} \n` +
+        `*Address:* ${data.address} \n` +
         `*Date:* ${data.sessionDate} \n` +
         `*Fee:* ${data.type} \n` +
         `*Availability:* ${data.availability} \n` +
@@ -82,21 +73,39 @@ formatMessage = (data) => {
 
 
 const main = () => {
-    fetchAvailabiltyDetails().then((data) => {
-        // console.log(data);
+    fetchAvailabiltyDetails().then(data => {
         // Send message to Telegram if vaccine slot available.
-        // console.log('Data:', data);
-        if (data.availability > 0) {
-            const formatted = formatMessage(data)
+        let selectedCenters = data.filter(center => centers.indexOf(center.center_id) !== -1)
 
-            sendMessage(formatted)
-        } else {
-            console.log('Slots unavailable', new Date());
-        }
+        logger.info(`Selected Centers: ${selectedCenters.length}`);
+        // Filter vaccine available centers and send message if avaialble.
+
+        selectedCenters.forEach(center => {
+            const name = center.name;
+            const address = center.address;
+            const type = center.fee_type;
+            const sessions = center.sessions;
+            sessions.forEach(async session => {
+                if (session.available_capacity > 0) {
+                    const sessionDate = session.date;
+                    const availability = session.available_capacity;
+                    const ageLimit = session.min_age_limit;
+                    const vaccine = session.vaccine;
+                    const dose1_availability = session.available_capacity_dose1;
+                    const dose2_availability = session.available_capacity_dose2;
+                    const formatted = await formatMessage({ name, address, type, sessionDate, availability, ageLimit, vaccine, dose1_availability, dose2_availability })
+
+                    await sendMessage(formatted)
+                } else {
+                    logger.warn(`Not available at: ${name}`);
+                }
+            })
+        })
+
 
 
     }).catch(err => {
-        console.log(err);
+        logger.error(err);
     });
 
 }
@@ -107,7 +116,7 @@ const main = () => {
 // send to telegram
 
 var job = new CronJob('0 */10 * * * *', function() {
-    console.log('You will see this message every10 minute', new Date());
+    logger.info('Job running at 10min interval');
     main();
 }, null, true, 'Asia/Kolkata');
 
